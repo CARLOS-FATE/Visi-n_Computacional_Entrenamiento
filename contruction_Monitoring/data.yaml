@@ -1,5 +1,15 @@
-train: ./dataset/images/train
-val: ./dataset/images/val
+#data.yaml
+train: D:/YOLO/contruction_Monitoring/dataset/train/images
+val: D:/YOLO/contruction_Monitoring/dataset/valid/images
+test: D:/YOLO/contruction_Monitoring/dataset/test/images
 
-nc: 4
-names: ['casco', 'chaleco', 'zapato', 'trabajador']
+
+nc: 5
+names: ['zapatos_de_seguridad', 'casco', 'chaleco', 'guantes', 'trabajador']
+
+roboflow:
+  workspace: ia-vision-hgnne
+  project: obreros_seguridads
+  version: 3
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/ia-vision-hgnne/obreros_seguridads/dataset/3

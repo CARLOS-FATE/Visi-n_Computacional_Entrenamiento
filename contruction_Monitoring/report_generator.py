@@ -1,51 +1,79 @@
-# report_generator.py
+import os
+import pandas as pd
+import datetime
 
 """
 Módulo de Generación de Reportes
 
 Autor: [Tu Nombre]
 Fecha: [Fecha Actual]
-Versión: 1.0
+Versión: 2.0
 Descripción:
-    - Genera un reporte detallado en formato CSV basado en las detecciones realizadas.
-    - Incluye análisis del uso de implementos de seguridad y carga de trabajo.
+    - Genera reportes detallados y resumen en formato CSV con detecciones y duraciones.
+    - Compatible con el flujo optimizado del sistema con YOLOv11.
 """
 
-import os
-import pandas as pd
-import datetime
-
-def generate_report(data, output_path):
+def generate_report(data, output_path, class_names=None):
     """
-    Genera un reporte en formato CSV con los resultados del análisis.
+    Genera reportes detallado y resumen en formato CSV.
 
     Args:
-        data (list): Lista de detecciones en formato [(ID, Objeto, Tiempo Detectado, Duración)]
-        output_path (str): Ruta donde se guardará el reporte.
+        data (list): Lista de tuplas (ID, Objeto, Tiempo Detectado en ms, duración=0).
+        output_path (str): Carpeta donde se guardarán los archivos.
+        class_names (list or dict): Lista o diccionario con los nombres de clases.
 
     Returns:
-        None
+        str: Ruta del archivo principal de reporte generado.
     """
-    # Crear dataframe
-    df = pd.DataFrame(data, columns=['ID', 'Objeto', 'Tiempo Detectado', 'Duración (s)'])
+    if not data:
+        raise ValueError("No hay datos de detección para generar el reporte.")
 
-    # Cálculo del total de objetos detectados por tipo
-    summary = df.groupby('Objeto').size().reset_index(name='Total Detectado')
+    os.makedirs(output_path, exist_ok=True)
 
-    # Cálculo del tiempo total de detección por objeto
-    duration_summary = df.groupby('Objeto')['Duración (s)'].sum().reset_index()
-    duration_summary.columns = ['Objeto', 'Tiempo Total (s)']
+    # Convertir IDs numéricos en nombres de clase si es necesario
+    processed_data = []
+    for row in data:
+        obj_id, clase, tiempo, duracion = row
 
-    # Unir ambos resúmenes
-    report = pd.merge(summary, duration_summary, on='Objeto')
+        # Si clase es un número y tenemos nombres, convertirlo
+        if isinstance(clase, int) and class_names:
+            try:
+                clase = class_names[clase]
+            except (IndexError, KeyError):
+                clase = f"clase_{clase}"
 
-    # Agregar timestamp
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    report['Fecha y Hora'] = timestamp
+        processed_data.append((obj_id, clase, tiempo, duracion))
 
-    # Guardar reporte en CSV
-    report_path = os.path.join(output_path, f"reporte_{timestamp.replace(':', '-')}.csv")
-    report.to_csv(report_path, index=False)
-    print(f"Reporte generado y guardado en: {report_path}")
+    df = pd.DataFrame(processed_data, columns=['ID', 'Objeto', 'Tiempo Detectado (ms)', 'Duración Placeholder'])
 
-    return report_path
+    # Reporte detallado por objeto/ID
+    detalle = df.groupby(['ID', 'Objeto'])['Tiempo Detectado (ms)'].agg(['min', 'max']).reset_index()
+    detalle['Duración Estimada (s)'] = (detalle['max'] - detalle['min']) / 1000.0
+    detalle = detalle.rename(columns={
+        'min': 'Primer Detección (ms)',
+        'max': 'Última Detección (ms)'
+    })
+
+    # Resumen por tipo de objeto
+    resumen = detalle.groupby('Objeto').agg({
+        'ID': 'count',
+        'Duración Estimada (s)': 'sum'
+    }).reset_index().rename(columns={
+        'ID': 'Total Detectado',
+        'Duración Estimada (s)': 'Tiempo Total (s)'
+    })
+
+    # Timestamp actual para nombres de archivos
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    # Guardar archivos
+    reporte_detalle_path = os.path.join(output_path, f"reporte_detallado_{timestamp}.csv")
+    reporte_resumen_path = os.path.join(output_path, f"reporte_resumen_{timestamp}.csv")
+
+    detalle.to_csv(reporte_detalle_path, index=False)
+    resumen.to_csv(reporte_resumen_path, index=False)
+
+    print(f"✅ Reporte detallado guardado: {reporte_detalle_path}")
+    print(f"✅ Reporte resumen guardado: {reporte_resumen_path}")
+
+    return reporte_detalle_path

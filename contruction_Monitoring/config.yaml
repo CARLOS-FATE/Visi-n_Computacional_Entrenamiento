@@ -1,20 +1,18 @@
-# config.yaml
-
-# Configuración del modelo YOLOv11
+# Configuración del modelo YOLOv5 / YOLOv8
 model:
-  model:
-  path: './weights/yolo11.pt'
+  path: './runs/detect/train8/weights/best.pt'
+  conf_thres: 0.4
+  iou_thres: 0.5
   data: './data.yaml'
-  conf_thres: 0.5
-  iou_thres: 0.4
 
-# Configuración del tracker
-tracker:
-  max_disappeared: 50
-  max_distance: 100
+output:
+  video_path: './output/output_video.avi'
+  log_path: './output/log.txt'
+  report_path: './output/detections_report.xlsx'
 
 # Configuración del sistema
 system:
-  video_path: './dataset/images/sample_video.mp4'
-  output_path: './output/report.csv'
-  log_path: './output/log.txt'
+  video_path: D:/YOLO/contruction_Monitoring/dataset/sample_video.mp4
+  output_path: ./output
+  log_path: ./logs
+

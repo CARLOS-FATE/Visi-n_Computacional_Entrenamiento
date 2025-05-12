@@ -1,24 +1,29 @@
-import os
-import sys
+# train_model.py
+
+from ultralytics import YOLO
 from pathlib import Path
 
-# Ruta absoluta al directorio de YOLOv5
-YOLO_PATH = "D:/YOLO/construction_Monitoring/yolov5"
-# Ruta absoluta al archivo data.yaml
-DATA_PATH = "../data.yaml"
+# Configuración
+DATA_PATH = Path("../data.yaml")  # Asegúrate de que este archivo esté en formato válido para YOLOv11
+MODEL_ARCH = "yolov8s.pt"         # Puedes usar yolov8n.pt, yolov8m.pt, yolov8l.pt o tu propio .pt preentrenado
+EPOCHS = 50
+IMG_SIZE = 640
+BATCH_SIZE = 16
+PROJECT_NAME = "casco_seguridad"
 
 def train_model():
-    os.chdir(YOLO_PATH)
-
-    command = (
-        f"python train.py --img 640 --batch 16 --epochs 50 "
-        f"--data {DATA_PATH} --weights yolov5s.pt --name casco_seguridad"
+    model = YOLO(MODEL_ARCH)  # Cargar modelo preentrenado o personalizado
+    model.train(
+        data=str(DATA_PATH),
+        epochs=EPOCHS,
+        imgsz=IMG_SIZE,
+        batch=BATCH_SIZE,
+        project="runs/train",
+        name=PROJECT_NAME,
+        verbose=True
     )
 
-
-    print("Entrenando modelo YOLOv5 con el siguiente comando:")
-    print(command)
-    os.system(command)
+    print(f"✅ Entrenamiento completado: runs/train/{PROJECT_NAME}")
 
 if __name__ == "__main__":
     train_model()

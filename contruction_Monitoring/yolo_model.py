@@ -1,71 +1,48 @@
-# yolo_model.py
+#uolo_model.py
 
-"""
-Módulo del Modelo YOLOv11
-
-Autor: [Tu Nombre]
-Fecha: [Fecha Actual]
-Versión: 1.0
-Descripción:
-    - Carga el modelo YOLOv11 para detección de objetos.
-    - Realiza predicciones y filtra resultados según los parámetros de confianza e IOU.
-"""
-
-import torch
+from ultralytics import YOLO
 import numpy as np
+import yaml
+import pathlib
 
-class YOLOModel:
-    def __init__(self, model_path, data_path, conf_thres=0.5, iou_thres=0.4):
+class YoloModel:
+    def __init__(self, model_path):
+        # Carga el modelo YOLOv8/v11 desde la ruta especificada
+        self.model = YOLO(model_path)
+        self.names = self.model.names  
+
+    def detect(self, frame, imgsz=640, conf_threshold=0.25):
         """
-        Inicializa el modelo YOLOv11.
+        Realiza detección sobre un frame usando YOLOv8/v11.
 
         Args:
-            model_path (str): Ruta del modelo entrenado (.pt).
-            data_path (str): Ruta del archivo data.yaml.
-            conf_thres (float): Umbral de confianza para las detecciones.
-            iou_thres (float): Umbral IOU para el filtrado de detecciones.
-        """
-        self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path, source='local')
-        self.model.conf = conf_thres
-        self.model.iou = iou_thres
-        self.class_names = self._load_class_names(data_path)
-
-    def _load_class_names(self, data_path):
-        """
-        Carga los nombres de las clases desde el archivo data.yaml.
-
-        Args:
-            data_path (str): Ruta del archivo data.yaml.
+            frame (np.ndarray): Imagen de entrada (BGR).
+            imgsz (int): Tamaño de la imagen de entrada para redimensionamiento.
+            conf_threshold (float): Umbral de confianza mínima.
 
         Returns:
-            list: Lista de nombres de clases.
+            list: Lista de detecciones en formato [x1, y1, x2, y2, conf, class_id].
         """
-        import yaml
-        from pathlib import Path
-
-        data_path = Path(data_path).resolve()  # convierte a ruta absoluta
-        with open(data_path, 'r') as file:
-            data = yaml.safe_load(file)
-        return data['names']
-
-
-    def detect(self, frame):
-        """
-        Realiza la detección en un frame.
-
-        Args:
-            frame (np.ndarray): Frame del video.
-
-        Returns:
-            list: Lista de detecciones en formato (x1, y1, x2, y2, label).
-        """
-        results = self.model(frame)
+        results = self.model.predict(source=frame, imgsz=imgsz, conf=conf_threshold, verbose=False)
         detections = []
 
-        for det in results.xyxy[0]:
-            x1, y1, x2, y2, conf, cls_id = map(float, det)
-            label = self.class_names[int(cls_id)]
-            if conf >= self.model.conf:
-                detections.append((int(x1), int(y1), int(x2), int(y2), label))
+        for result in results:
+            if result.boxes is not None:
+                boxes = result.boxes.xyxy.cpu().numpy()
+                confs = result.boxes.conf.cpu().numpy()
+                class_ids = result.boxes.cls.cpu().numpy().astype(int)
+
+                for box, conf, class_id in zip(boxes, confs, class_ids):
+                    x1, y1, x2, y2 = box
+                    detections.append([float(x1), float(y1), float(x2), float(y2), float(conf), int(class_id)])
+
 
         return detections
+
+# === Cargar ruta del modelo desde config.yaml ===
+config_path = pathlib.Path(__file__).parent / 'config.yaml'
+with open(config_path, 'r') as f:
+    config = yaml.safe_load(f)
+
+model_path = pathlib.Path(__file__).parent / config['model']['path']
+model = YoloModel(str(model_path))
